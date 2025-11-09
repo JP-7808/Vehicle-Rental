@@ -2,10 +2,9 @@ import express from 'express';
 import {
   createPaymentOrder,
   verifyPayment,
-  getPaymentDetails,
+  getPaymentById, // Updated import name
   initiateRefund,
   getPaymentHistory,
-  getPaymentById,
   handlePaymentWebhook
 } from '../controllers/paymentController.js';
 import { authMiddleware, requireCustomer, requireVendorOrAdmin } from '../middleware/authMiddleware.js';
@@ -16,7 +15,7 @@ const router = express.Router();
 router.post('/create-order', authMiddleware, requireCustomer, createPaymentOrder);
 router.post('/verify', authMiddleware, requireCustomer, verifyPayment);
 router.get('/history', authMiddleware, getPaymentHistory);
-router.get('/:id', authMiddleware, getPaymentById);
+router.get('/:id', authMiddleware, getPaymentById); // Updated route to use getPaymentById
 
 // Vendor/Admin routes
 router.post('/:id/refund', authMiddleware, requireVendorOrAdmin, initiateRefund);

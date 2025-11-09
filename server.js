@@ -6,8 +6,8 @@ import cors from "cors";
 import authRoutes from './routes/authRoutes.js'
 import vendorRoutes from './routes/vendorRoutes.js';
 import vehicleRoutes from './routes/vehicleRoutes.js';
-// import bookingRoutes from './routes/bookingRoutes.js';
-// import paymentRoutes from './routes/paymentRoutes.js';
+import bookingRoutes from './routes/bookingRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 
 dotenv.config();
@@ -45,8 +45,8 @@ app.use(express.urlencoded({ extended: true })); // for form-data
 app.use('/api/auth', authRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/vehicles', vehicleRoutes);
-// app.use('/api/bookings', bookingRoutes);
-// app.use('/api/payments', paymentRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Health check route

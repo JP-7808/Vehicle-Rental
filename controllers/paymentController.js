@@ -4,10 +4,11 @@ import User from '../models/User.js';
 import Vendor from '../models/Vendor.js';
 import Transaction from '../models/Transaction.js';
 import Notification from '../models/Notification.js';
+import crypto from 'crypto'; // Add this import for webhook
 import { 
   createRazorpayOrder, 
   verifyPaymentSignature, 
-  getPaymentDetails,
+  fetchPaymentDetails, // Updated import name
   createRefund 
 } from '../config/razorpay.js';
 
@@ -161,7 +162,7 @@ export const verifyPayment = async (req, res) => {
     }
 
     // Get payment details from Razorpay
-    const paymentDetails = await getPaymentDetails(razorpay_payment_id);
+    const paymentDetails = await fetchPaymentDetails(razorpay_payment_id); // Updated function name
     if (!paymentDetails.success) {
       return res.status(400).json({
         success: false,
@@ -278,8 +279,8 @@ export const verifyPayment = async (req, res) => {
   }
 };
 
-// Get payment details
-export const getPaymentDetails = async (req, res) => {
+// Get payment by ID (Controller function)
+export const getPaymentById = async (req, res) => { // Renamed from getPaymentDetails
   try {
     const payment = await Payment.findById(req.params.id)
       .populate('booking')
@@ -316,7 +317,7 @@ export const getPaymentDetails = async (req, res) => {
       data: { payment }
     });
   } catch (error) {
-    console.error('Get payment details error:', error);
+    console.error('Get payment by ID error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch payment details'

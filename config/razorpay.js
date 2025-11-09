@@ -55,7 +55,7 @@ export const createRazorpayOrder = async (amount, currency = 'INR', receipt = nu
 };
 
 // Fetch payment details from Razorpay
-export const getPaymentDetails = async (paymentId) => {
+export const fetchPaymentDetails = async (paymentId) => { // Renamed from getPaymentDetails
   try {
     const payment = await razorpay.payments.fetch(paymentId);
     return {
@@ -98,7 +98,7 @@ export const createRefund = async (paymentId, amount = null, speed = 'normal') =
 };
 
 // Fetch refund details
-export const getRefundDetails = async (refundId) => {
+export const fetchRefundDetails = async (refundId) => {
   try {
     const refund = await razorpay.refunds.fetch(refundId);
     return {
