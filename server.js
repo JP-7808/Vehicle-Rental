@@ -47,7 +47,7 @@ app.use('/api/vendors', vendorRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 // app.use('/api/bookings', bookingRoutes);
 // app.use('/api/payments', paymentRoutes);
-// app.use('/api/admin', adminRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
