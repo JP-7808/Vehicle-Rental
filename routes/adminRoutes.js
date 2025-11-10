@@ -46,17 +46,136 @@ import {
   createPromoCode,
   getAllPromoCodes,
   updatePromoCode,
-  deletePromoCode
+  deletePromoCode,
+
+  // Enhanced Dashboard
+  getEnhancedDashboard,
+  
+  // Advanced Analytics
+  getUserAnalytics,
+  getVendorPerformance,
+  getRevenueAnalytics,
+  getBookingQualityMetrics,
+  getRefundAnalytics,
+  
+  // System Management
+  getSystemHealth,
+  
+  // Bulk Operations
+  bulkUpdateUserStatus,
+  bulkVerifyVendors,
+  
+  // Data Management
+  exportData,
+  getAuditLog,
+
+
+  // User Management
+  createUser,
+  getUserDetails,
+  updateUser,
+  deleteUser,
+  uploadUserAvatar,
+  
+  // Vehicle Management
+  createVehicle,
+  getVehicleDetails,
+  updateVehicle,
+  deleteVehicle,
+  uploadVehicleImages,
+  deleteVehicleImage,
+  manageVehicleAvailability,
+  transferVehicle,
+  getVehiclesWithFilter
+
 } from '../controllers/adminController.js';
 import { authMiddleware, requireAdmin } from '../middleware/authMiddleware.js';
+import { uploadMiddleware, handleCloudinaryUpload, handleMultipleCloudinaryUpload } from '../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
 // All admin routes require authentication and admin role
 router.use(authMiddleware, requireAdmin);
 
+
+// ==============================================
+// USER MANAGEMENT ROUTES
+// ==============================================
+
+// User CRUD operations
+router.post('/users', createUser);
+router.get('/users', getAllUsers);
+router.get('/users/:id', getUserDetails);
+router.put('/users/:id', updateUser);
+router.delete('/users/:id', deleteUser);
+
+// User profile picture
+router.post('/users/:id/avatar', 
+  uploadMiddleware.single('avatar'),
+  handleCloudinaryUpload('avatar', 'profile'),
+  uploadUserAvatar
+);
+
+// ==============================================
+// VEHICLE MANAGEMENT ROUTES
+// ==============================================
+
+// Vehicle CRUD operations
+router.post('/vehicles', 
+  uploadMiddleware.array('images', 10),
+  handleMultipleCloudinaryUpload('uploadedFiles', 'vehicle'),
+  createVehicle
+);
+
+router.get('/vehicles', getVehiclesWithFilter);
+router.get('/vehicles/:id', getVehicleDetails);
+router.put('/vehicles/:id', 
+  uploadMiddleware.array('images', 10),
+  handleMultipleCloudinaryUpload('uploadedFiles', 'vehicle'),
+  updateVehicle
+);
+
+router.delete('/vehicles/:id', deleteVehicle);
+
+// Vehicle images management
+router.post('/vehicles/:id/images',
+  uploadMiddleware.array('images', 10),
+  handleMultipleCloudinaryUpload('uploadedFiles', 'vehicle'),
+  uploadVehicleImages
+);
+
+router.delete('/vehicles/:id/images', deleteVehicleImage);
+
+// Vehicle availability management
+router.patch('/vehicles/:id/availability', manageVehicleAvailability);
+
+// Vehicle transfer
+router.patch('/vehicles/:id/transfer', transferVehicle);
+
 // Dashboard
 router.get('/dashboard', getAdminDashboard);
+router.get('/dashboard/enhanced', getEnhancedDashboard);
+
+// Analytics Routes
+router.get('/analytics/users', getUserAnalytics);
+router.get('/analytics/vendors/performance', getVendorPerformance);
+router.get('/analytics/revenue', getRevenueAnalytics);
+router.get('/analytics/bookings/quality', getBookingQualityMetrics);
+router.get('/analytics/refunds', getRefundAnalytics);
+
+// System Management Routes
+router.get('/system/health', getSystemHealth);
+
+// Bulk Operations Routes
+router.post('/users/bulk-status', bulkUpdateUserStatus);
+router.post('/vendors/bulk-verify', bulkVerifyVendors);
+
+// Data Management Routes
+router.get('/export', exportData);
+router.get('/audit-log', getAuditLog);
+
+
+
 
 // User Management
 router.get('/users', getAllUsers);

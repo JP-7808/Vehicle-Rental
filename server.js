@@ -29,13 +29,19 @@ mongoose.connection.on("disconnected", () => {
 
 
 // Middleware
-app.use(
-  cors({
-    origin: "*",
-    methods: "GET,POST,PUT,DELETE,PATCH",
-    credentials: true,
-  })
-);
+const corsOptions = {
+  origin: 'http://localhost:5173', // Your frontend URL
+  credentials: true,
+  methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS",
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With'
+  ]
+};
+
+app.use(cors(corsOptions));
+
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true })); // for form-data
