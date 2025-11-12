@@ -30,7 +30,7 @@ mongoose.connection.on("disconnected", () => {
 
 // Middleware
 const corsOptions = {
-  origin: 'http://localhost:5173', // Your frontend URL
+  origin: '*', // Your frontend URL
   credentials: true,
   methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS",
   allowedHeaders: [
