@@ -30,7 +30,7 @@ mongoose.connection.on("disconnected", () => {
 
 // Middleware
 const corsOptions = {
-  origin: '*', // Your frontend URL
+  origin: ['http://localhost:5173', 'https://vehicle-rental-frontend-ashy.vercel.app'], // Your frontend URL
   credentials: true,
   methods: "GET,POST,PUT,DELETE,PATCH,OPTIONS",
   allowedHeaders: [
