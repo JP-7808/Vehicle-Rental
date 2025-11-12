@@ -17,7 +17,7 @@ export const calculateBookingPrice = async (req, res) => {
       promoCode,
       bookingType = 'self-drive',
       driverRequired = false
-    } = req.body;
+    } = req.body || {};
 
     if (!vehicleId || !pickupDateTime || !dropoffDateTime) {
       return res.status(400).json({
@@ -233,21 +233,80 @@ export const createBooking = async (req, res) => {
       });
     }
 
-    // Calculate price
-    const priceResponse = await calculateBookingPrice({
-      vehicleId,
-      pickupDateTime,
-      dropoffDateTime,
-      promoCode,
-      bookingType,
-      driverRequired: !!driverId
-    });
+    // Calculate price directly instead of calling the controller function
+    const durationMs = dropoffDateTime - pickupDateTime;
+    const durationHours = Math.ceil(durationMs / (1000 * 60 * 60));
+    const durationDays = Math.ceil(durationHours / 24);
 
-    if (!priceResponse.success) {
-      return res.status(400).json(priceResponse);
+    // Calculate base amount
+    let baseAmount = 0;
+    if (durationDays >= 30 && vehicle.pricing.monthlyDiscountPercent > 0) {
+      const monthlyRate = vehicle.pricing.baseDaily * 30;
+      const discount = monthlyRate * (vehicle.pricing.monthlyDiscountPercent / 100);
+      baseAmount = monthlyRate - discount;
+    } else if (durationDays >= 7 && vehicle.pricing.weeklyDiscountPercent > 0) {
+      const weeklyRate = vehicle.pricing.baseDaily * 7;
+      const discount = weeklyRate * (vehicle.pricing.weeklyDiscountPercent / 100);
+      baseAmount = weeklyRate - discount;
+    } else {
+      baseAmount = vehicle.pricing.baseDaily * durationDays;
     }
 
-    const { priceBreakdown, promoCode: promoCodeDetails } = priceResponse.data;
+    // Add hourly charges if any
+    if (durationHours % 24 > 0 && vehicle.pricing.extraHourCharge > 0) {
+      baseAmount += vehicle.pricing.extraHourCharge * (durationHours % 24);
+    }
+
+    // Driver charges
+    let driverAmount = 0;
+    if (bookingType === 'with-driver' || driverId) {
+      driverAmount = 100 * durationHours; // ₹100 per hour as base rate
+    }
+
+    // Calculate taxes (18% GST)
+    const taxes = (baseAmount + driverAmount) * 0.18;
+
+    // Deposit amount
+    const depositAmount = vehicle.pricing.depositAmount || 0;
+
+    // Apply promo code discount
+    let discount = 0;
+    let promoCodeDetails = null;
+
+    if (promoCode) {
+      promoCodeDetails = await PromoCode.findOne({ 
+        code: promoCode.toUpperCase(),
+        isActive: true,
+        validFrom: { $lte: new Date() },
+        validTill: { $gte: new Date() }
+      });
+
+      if (promoCodeDetails) {
+        if (promoCodeDetails.discountType === 'percentage') {
+          discount = baseAmount * (promoCodeDetails.discountValue / 100);
+          if (promoCodeDetails.maxDiscountAmount && discount > promoCodeDetails.maxDiscountAmount) {
+            discount = promoCodeDetails.maxDiscountAmount;
+          }
+        } else {
+          discount = promoCodeDetails.discountValue;
+        }
+      }
+    }
+
+    const totalPayable = baseAmount + driverAmount + taxes + depositAmount - discount;
+
+    const priceBreakdown = {
+      baseAmount,
+      driverAmount,
+      taxes: Math.round(taxes),
+      discount: Math.round(discount),
+      deposit: depositAmount,
+      totalPayable: Math.round(totalPayable),
+      duration: {
+        days: durationDays,
+        hours: durationHours
+      }
+    };
 
     // Generate booking reference
     const bookingRef = `BOOK_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
