@@ -60,18 +60,25 @@ export const createVendorProfile = async (req, res) => {
 };
 
 // Get vendor profile
+// Get vendor profile
 export const getVendorProfile = async (req, res) => {
   try {
+    console.log('Fetching vendor profile for user:', req.user._id);
+    
     const vendor = await Vendor.findOne({ user: req.user._id })
-      .populate('user', 'name email phone avatar');
+      .populate('user', 'name email phone avatar')
+      .select('-__v');
 
     if (!vendor) {
+      console.log('Vendor profile not found for user:', req.user._id);
       return res.status(404).json({
         success: false,
-        message: 'Vendor profile not found'
+        message: 'Vendor profile not found. Please create a vendor profile first.'
       });
     }
 
+    console.log('Vendor profile found:', vendor._id);
+    
     res.json({
       success: true,
       data: { vendor }
@@ -528,6 +535,7 @@ export const getVendorEarnings = async (req, res) => {
 };
 
 // Block vendor dates
+// Block vendor dates
 export const blockVendorDates = async (req, res) => {
   try {
     const { dates, reason } = req.body;
@@ -547,25 +555,255 @@ export const blockVendorDates = async (req, res) => {
       });
     }
 
-    // Add new blocked dates
-    const newBlockedDates = dates.map(date => ({
-      date: new Date(date),
-      reason: reason || 'Vendor unavailable'
-    }));
+    // Validate dates and create new blocked dates
+    const newBlockedDates = dates.map(dateString => {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        throw new Error(`Invalid date: ${dateString}`);
+      }
+      return {
+        date: date,
+        reason: reason || 'Vendor unavailable'
+      };
+    });
 
+    // Check for duplicate dates
+    const existingDates = vendor.blockedDates.map(bd => bd.date.toISOString().split('T')[0]);
+    const duplicates = newBlockedDates.filter(newDate => 
+      existingDates.includes(newDate.date.toISOString().split('T')[0])
+    );
+
+    if (duplicates.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Some dates are already blocked: ${duplicates.map(d => d.date.toISOString().split('T')[0]).join(', ')}`
+      });
+    }
+
+    // Add new blocked dates
     vendor.blockedDates = [...vendor.blockedDates, ...newBlockedDates];
+    
+    // Sort blocked dates by date
+    vendor.blockedDates.sort((a, b) => a.date - b.date);
+    
     await vendor.save();
 
     res.json({
       success: true,
       message: 'Dates blocked successfully',
-      data: { blockedDates: vendor.blockedDates }
+      data: { 
+        blockedDates: vendor.blockedDates.map(bd => ({
+          date: bd.date,
+          reason: bd.reason,
+          id: bd._id
+        }))
+      }
     });
   } catch (error) {
     console.error('Block vendor dates error:', error);
+    
+    if (error.message.includes('Invalid date')) {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Failed to block dates'
+    });
+  }
+};
+
+// Remove blocked date
+export const removeBlockedDate = async (req, res) => {
+  try {
+    const { dateId } = req.params;
+
+    const vendor = await Vendor.findOne({ user: req.user._id });
+    if (!vendor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor profile not found'
+      });
+    }
+
+    // Find the blocked date by ID
+    const blockedDateIndex = vendor.blockedDates.findIndex(bd => bd._id.toString() === dateId);
+    
+    if (blockedDateIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Blocked date not found'
+      });
+    }
+
+    // Remove the blocked date
+    vendor.blockedDates.splice(blockedDateIndex, 1);
+    await vendor.save();
+
+    res.json({
+      success: true,
+      message: 'Date unblocked successfully',
+      data: { 
+        blockedDates: vendor.blockedDates.map(bd => ({
+          date: bd.date,
+          reason: bd.reason,
+          id: bd._id
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Remove blocked date error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to unblock date'
+    });
+  }
+};
+
+// Update vendor settings
+export const updateVendorSettings = async (req, res) => {
+  try {
+    const { isActive, contactPhone, contactEmail } = req.body;
+
+    const vendor = await Vendor.findOneAndUpdate(
+      { user: req.user._id },
+      {
+        isActive,
+        contactPhone,
+        contactEmail
+      },
+      { new: true }
+    );
+
+    if (!vendor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor profile not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Vendor settings updated successfully',
+      data: { vendor }
+    });
+  } catch (error) {
+    console.error('Update vendor settings error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update vendor settings'
+    });
+  }
+};
+
+// Get vendor reviews
+export const getVendorReviews = async (req, res) => {
+  try {
+    const vendor = await Vendor.findOne({ user: req.user._id });
+    if (!vendor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor profile not found'
+      });
+    }
+
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const reviews = await Review.find({ vendor: vendor._id })
+      .populate('reviewer', 'name avatar')
+      .populate('vehicle', 'title')
+      .populate('booking')
+      .skip(skip)
+      .limit(parseInt(limit))
+      .sort({ createdAt: -1 });
+
+    const total = await Review.countDocuments({ vendor: vendor._id });
+
+    // Calculate average rating
+    const ratingStats = await Review.aggregate([
+      {
+        $match: { vendor: vendor._id }
+      },
+      {
+        $group: {
+          _id: null,
+          averageRating: { $avg: '$rating' },
+          totalReviews: { $sum: 1 },
+          ratingDistribution: {
+            $push: '$rating'
+          }
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        reviews,
+        ratingStats: ratingStats[0] || {
+          averageRating: 0,
+          totalReviews: 0,
+          ratingDistribution: []
+        },
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get vendor reviews error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch vendor reviews'
+    });
+  }
+};
+
+// Update vehicle availability blocks
+export const updateVehicleAvailabilityBlocks = async (req, res) => {
+  try {
+    const vendor = await Vendor.findOne({ user: req.user._id });
+    if (!vendor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor profile not found'
+      });
+    }
+
+    const { vehicleId, availabilityBlocks } = req.body;
+
+    const vehicle = await Vehicle.findOne({
+      _id: vehicleId,
+      vendor: vendor._id
+    });
+
+    if (!vehicle) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vehicle not found or access denied'
+      });
+    }
+
+    vehicle.availabilityBlocks = availabilityBlocks;
+    await vehicle.save();
+
+    res.json({
+      success: true,
+      message: 'Vehicle availability blocks updated successfully',
+      data: { availabilityBlocks: vehicle.availabilityBlocks }
+    });
+  } catch (error) {
+    console.error('Update vehicle availability blocks error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update vehicle availability blocks'
     });
   }
 };

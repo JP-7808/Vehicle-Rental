@@ -10,7 +10,11 @@ import {
   updateVendorBankDetails,
   uploadKYCDocuments,
   blockVendorDates,
-  getVendorEarnings
+  removeBlockedDate, 
+  getVendorEarnings,
+  updateVendorSettings,
+  getVendorReviews,
+  updateVehicleAvailabilityBlocks
 } from '../controllers/vendorController.js';
 import { authMiddleware, requireVendor } from '../middleware/authMiddleware.js';
 import { uploadMiddleware } from '../middleware/uploadMiddleware.js';
@@ -24,6 +28,7 @@ router.use(authMiddleware, requireVendor);
 router.post('/profile', createVendorProfile);
 router.get('/profile', getVendorProfile);
 router.put('/profile', updateVendorProfile);
+router.patch('/settings', updateVendorSettings);
 router.patch('/bank-details', updateVendorBankDetails);
 
 // KYC routes
@@ -39,9 +44,13 @@ router.post('/kyc/documents',
 
 // Vehicle management
 router.get('/vehicles', getVendorVehicles);
+router.patch('/vehicles/availability', updateVehicleAvailabilityBlocks);
 
 // Booking management
 router.get('/bookings', getVendorBookings);
+
+// Reviews
+router.get('/reviews', getVendorReviews);
 
 // Dashboard and analytics
 router.get('/dashboard', getVendorDashboard);
@@ -49,5 +58,6 @@ router.get('/earnings', getVendorEarnings);
 
 // Availability management
 router.post('/block-dates', blockVendorDates);
+router.delete('/block-dates/:dateId', removeBlockedDate); // Add this route
 
 export default router;

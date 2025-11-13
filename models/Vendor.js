@@ -37,7 +37,10 @@ const vendorSchema = new Schema({
   },
   createdAt: Date,
   isActive: { type: Boolean, default: true },
-  blockedDates: [{ type: Date }] // vendor holidays / unavailability
+  blockedDates: [{
+    date: { type: Date, required: true },
+    reason: { type: String, default: 'Vendor unavailable' }
+  }],
 }, { timestamps: true });
 
 vendorSchema.index({ 'address.city': 1 });
