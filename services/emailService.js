@@ -5,26 +5,15 @@ dotenv.config();
 
 // Create transporter
 const createTransporter = () => {
-  const transporter = nodemailer.createTransport({
+  return nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
-    port: Number(process.env.EMAIL_PORT),          // 587
-    secure: process.env.EMAIL_SECURE === 'true',   // false for STARTTLS
+    port: process.env.EMAIL_PORT,
+    secure: false,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
-    // Render sometimes needs longer timeout
-    connectionTimeout: 10_000,
-    greetingTimeout:   10_000,
-    socketTimeout:     10_000,
-    // Force STARTTLS (Gmail requires it on 587)
-    requireTLS: true,
-    // Debug (remove in prod)
-    // logger: true,
-    // debug: true,
   });
-
-  return transporter;
 };
 
 // Email templates
@@ -139,15 +128,7 @@ const emailTemplates = {
 export const sendEmail = async (to, templateName, data) => {
   try {
     const transporter = createTransporter();
-
-    // Verify once at startup (optional)
-    await transporter.verify();
-    console.log('SMTP transporter verified');
-
-    const template = emailTemplates[templateName](
-      data.otp ?? data.resetUrl,
-      data.name
-    );
+    const template = emailTemplates[templateName](data.otp || data.resetUrl, data.name);
 
     const mailOptions = {
       from: `"Vehicle Rental Service" <${process.env.EMAIL_FROM}>`,
@@ -157,10 +138,10 @@ export const sendEmail = async (to, templateName, data) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('Email sent →', info.messageId);
+    console.log('Email sent:', info.messageId);
     return { success: true, messageId: info.messageId };
-  } catch (err) {
-    console.error('Email sending error:', err);
+  } catch (error) {
+    console.error('Email sending error:', error);
     throw new Error('Failed to send email');
   }
 };
