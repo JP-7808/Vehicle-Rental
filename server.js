@@ -9,6 +9,7 @@ import vehicleRoutes from './routes/vehicleRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import { verifyEmailTransporter } from './services/emailService.js';
 
 dotenv.config();
 const app = express();
@@ -73,6 +74,8 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 6600;
 app.listen(PORT, () => {
-  connect();
+  connect().then(async () => {
+    await verifyEmailTransporter();   // <-- ADD THIS
+  });
   console.log(`Server Running on Port ${PORT}`);
 });
