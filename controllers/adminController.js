@@ -158,37 +158,40 @@ export const getAllUsers = async (req, res) => {
 
 export const getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id)
+    const user = await User.findBy20
+      .findById(req.params.id)
       .select('-passwordHash')
-      .populate('vendorProfile');
+      .populate({
+        path: 'vendorProfile',
+        select: 'companyName contactPhone rating ratingCount isVerified'
+      });
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Get user's bookings if any
+    // ---- recent bookings (unchanged) ----
     const userBookings = await Booking.find({ customer: user._id })
       .populate('vehicle', 'title vehicleType')
       .populate('vendor', 'companyName')
       .sort({ createdAt: -1 })
       .limit(10);
 
+    // ---- OPTIONAL: vendor's vehicles (separate query) ----
+    let vendorVehicles = [];
+    if (user.role === 'vendor' && user.vendorProfile) {
+      vendorVehicles = await Vehicle.find({ vendor: user.vendorProfile._id })
+        .select('title vehicleType images seats transmission')
+        .limit(5);
+    }
+
     res.json({
       success: true,
-      data: {
-        user,
-        recentBookings: userBookings
-      }
+      data: { user, recentBookings: userBookings, vendorVehicles }
     });
   } catch (error) {
     console.error('Get user by ID error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch user'
-    });
+    res.status(500).json({ success: false, message: 'Failed to fetch user' });
   }
 };
 

@@ -41,6 +41,7 @@ const vendorSchema = new Schema({
     date: { type: Date, required: true },
     reason: { type: String, default: 'Vendor unavailable' }
   }],
+  vehicles: [{ type: Schema.Types.ObjectId, ref: "Vehicle" }]
 }, { timestamps: true });
 
 vendorSchema.index({ 'address.city': 1 });
