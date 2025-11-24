@@ -348,7 +348,7 @@ export const getVendorBookings = async (req, res) => {
       .populate('payment')
       .skip(skip)
       .limit(parseInt(limit))
-      .sort({ 'pickup.datetime': 1 });
+      .sort({ createdAt: -1 })
 
     const total = await Booking.countDocuments(query);
 
