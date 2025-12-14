@@ -31,7 +31,7 @@ mongoose.connection.on("disconnected", () => {
 // Middleware
 const corsOptions = {
   origin: [
-    'https://www.asiaandcompanyselfdrive.com/',  // your deployed frontend
+    'https://asiaandcompanyselfdrive.com',  // your deployed frontend
     'http://localhost:5173' // for local development
   ],
   credentials: true,
