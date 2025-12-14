@@ -31,7 +31,7 @@ mongoose.connection.on("disconnected", () => {
 // Middleware
 const corsOptions = {
   origin: [
-    'https://vehicle-rental-frontend-ashy.vercel.app',  // your deployed frontend
+    'https://www.asiaandcompanyselfdrive.com/',  // your deployed frontend
     'http://localhost:5173' // for local development
   ],
   credentials: true,
