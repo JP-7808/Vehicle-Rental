@@ -223,6 +223,46 @@ export const searchVehicles = async (req, res) => {
   }
 };
 
+
+// Get distinct cities for autocomplete
+export const searchCities = async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q || q.trim().length < 1) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    const regex = new RegExp(q.trim(), 'i');
+
+    // Find distinct cities where vehicles are active
+    const cities = await Vehicle.distinct('locations.city', {
+      isActive: true,
+      'locations.city': { $regex: regex }
+    });
+
+    // Optional: sort alphabetically and limit results
+    const sortedCities = cities
+      .sort((a, b) => a.localeCompare(b))
+      .slice(0, 10); // Limit to 10 suggestions
+
+    res.json({
+      success: true,
+      data: sortedCities
+    });
+  } catch (error) {
+    console.error('Search cities error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch cities'
+    });
+  }
+};
+
+
 // Get vehicle by ID
 export const getVehicleById = async (req, res) => {
   try {

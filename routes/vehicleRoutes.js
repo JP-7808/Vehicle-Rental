@@ -9,7 +9,8 @@ import {
   deleteVehicleImage,
   getVehicleAvailability,
   updateVehicleAvailability,
-  searchVehicles
+  searchVehicles,
+  searchCities
 } from '../controllers/vehicleController.js';
 import { authMiddleware, requireVendor, optionalAuthMiddleware } from '../middleware/authMiddleware.js';
 import { uploadMiddleware, handleMultipleCloudinaryUpload } from '../middleware/uploadMiddleware.js';
@@ -18,6 +19,7 @@ const router = express.Router();
 
 // Public routes
 router.get('/', searchVehicles);
+router.get('/cities', searchCities);
 router.get('/:id', optionalAuthMiddleware, getVehicleById);
 router.get('/:id/availability', getVehicleAvailability);
 
