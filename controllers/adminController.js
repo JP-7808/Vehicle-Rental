@@ -109,10 +109,13 @@ export const getAdminDashboard = async (req, res) => {
 };
 
 // User Management
+// User Management
 export const getAllUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 10, role, status, search } = req.query;
+    const { page = 1, limit = 9, role, status, search } = req.query; // Changed to 9
     const skip = (page - 1) * limit;
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
 
     let query = {};
 
@@ -126,25 +129,25 @@ export const getAllUsers = async (req, res) => {
       ];
     }
 
+    // Get total count
+    const totalItems = await User.countDocuments(query);
+    const totalPages = Math.ceil(totalItems / limitNumber);
+
     const users = await User.find(query)
       .select('-passwordHash')
       .populate('vendorProfile')
       .skip(skip)
-      .limit(parseInt(limit))
+      .limit(limitNumber)
       .sort({ createdAt: -1 });
-
-    const total = await User.countDocuments(query);
 
     res.json({
       success: true,
       data: {
         users,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
+        totalItems,
+        totalPages,
+        currentPage: pageNumber,
+        itemsPerPage: limitNumber
       }
     });
   } catch (error) {
@@ -290,10 +293,13 @@ export const updateUserRole = async (req, res) => {
 };
 
 // Vendor Management
+// Vendor Management
 export const getAllVendors = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, kycStatus, search } = req.query;
+    const { page = 1, limit = 9, status, kycStatus, search } = req.query; // Changed to 9
     const skip = (page - 1) * limit;
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
 
     let query = {};
 
@@ -306,24 +312,24 @@ export const getAllVendors = async (req, res) => {
       ];
     }
 
+    // Get total count
+    const totalItems = await Vendor.countDocuments(query);
+    const totalPages = Math.ceil(totalItems / limitNumber);
+
     const vendors = await Vendor.find(query)
       .populate('user', 'name email phone avatar')
       .skip(skip)
-      .limit(parseInt(limit))
+      .limit(limitNumber)
       .sort({ createdAt: -1 });
-
-    const total = await Vendor.countDocuments(query);
 
     res.json({
       success: true,
       data: {
         vendors,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
+        totalItems,
+        totalPages,
+        currentPage: pageNumber,
+        itemsPerPage: limitNumber
       }
     });
   } catch (error) {
@@ -574,8 +580,10 @@ export const rejectVendorKYC = async (req, res) => {
 // Vehicle Management
 export const getAllVehicles = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, vehicleType, search } = req.query;
+    const { page = 1, limit = 8, status, vehicleType, search } = req.query; // Changed to 8 (to match 4-column grid)
     const skip = (page - 1) * limit;
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
 
     let query = {};
 
@@ -591,24 +599,24 @@ export const getAllVehicles = async (req, res) => {
       ];
     }
 
+    // Get total count
+    const totalItems = await Vehicle.countDocuments(query);
+    const totalPages = Math.ceil(totalItems / limitNumber);
+
     const vehicles = await Vehicle.find(query)
       .populate('vendor', 'companyName contactPhone')
       .skip(skip)
-      .limit(parseInt(limit))
+      .limit(limitNumber)
       .sort({ createdAt: -1 });
-
-    const total = await Vehicle.countDocuments(query);
 
     res.json({
       success: true,
       data: {
         vehicles,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
+        totalItems,
+        totalPages,
+        currentPage: pageNumber,
+        itemsPerPage: limitNumber
       }
     });
   } catch (error) {
@@ -697,50 +705,100 @@ export const updateVehicleStatus = async (req, res) => {
 };
 
 // Booking Management
+// Booking Management - FIXED for Admin Panel
 export const getAllBookings = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, dateFrom, dateTo, search } = req.query;
-    const skip = (page - 1) * limit;
+    const { 
+      page = 1, 
+      limit = 9, // Changed from 10 to match frontend
+      status, 
+      dateFrom, 
+      dateTo, 
+      search,
+      customerEmail,
+      vendorId,
+      vehicleId
+    } = req.query;
+    
+    const skip = (page - 1) * parseInt(limit);
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+
+    
 
     let query = {};
 
-    if (status) query.status = status;
-    if (dateFrom && dateTo) {
-      query.createdAt = {
-        $gte: new Date(dateFrom),
-        $lte: new Date(dateTo)
-      };
+    // Status filter
+    if (status && status !== 'all') {
+      query.status = status;
     }
+
+    // Date range filter
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) query.createdAt.$lte = new Date(dateTo);
+    }
+
+    // Search filter
     if (search) {
       query.$or = [
         { bookingRef: { $regex: search, $options: 'i' } },
-        { 'pickup.city': { $regex: search, $options: 'i' } }
+        { 'pickup.city': { $regex: search, $options: 'i' } },
+        { 'dropoff.city': { $regex: search, $options: 'i' } },
+        { 'customer.name': { $regex: search, $options: 'i' } }
       ];
     }
 
+    // Customer email filter
+    if (customerEmail) {
+      const customer = await User.findOne({ email: customerEmail });
+      if (customer) {
+        query.customer = customer._id;
+      }
+    }
+
+    // Vendor filter
+    if (vendorId) {
+      query.vendor = vendorId;
+    }
+
+    // Vehicle filter
+    if (vehicleId) {
+      query.vehicle = vehicleId;
+    }
+
+    // Get total count
+    const totalItems = await Booking.countDocuments(query);
+    const totalPages = Math.ceil(totalItems / limitNumber);
+
+    
+
+    // Get bookings with pagination
     const bookings = await Booking.find(query)
       .populate('customer', 'name email phone')
-      .populate('vendor', 'companyName')
-      .populate('vehicle', 'title vehicleType')
+      .populate('vendor', 'companyName contactPhone')
+      .populate('vehicle', 'title vehicleType images make model')
       .populate('payment')
       .skip(skip)
-      .limit(parseInt(limit))
+      .limit(limitNumber)
       .sort({ createdAt: -1 });
 
-    const total = await Booking.countDocuments(query);
-
-    res.json({
+    // Format response to match frontend expectations
+    const response = {
       success: true,
       data: {
         bookings,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
+        totalItems,
+        totalPages,
+        currentPage: pageNumber,
+        itemsPerPage: limitNumber
       }
-    });
+    };
+
+    
+
+    res.json(response);
   } catch (error) {
     console.error('Get all bookings error:', error);
     res.status(500).json({
@@ -935,55 +993,79 @@ export const cancelBookingAdmin = async (req, res) => {
 };
 
 // Payment Management
+// In your adminController.js, update the getAllPayments function:
+
+// In adminController.js, update getAllPayments function:
+
+// In adminController.js - Update getAllPayments function
 export const getAllPayments = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, dateFrom, dateTo } = req.query;
-    const skip = (page - 1) * limit;
+    const { 
+      page = 1, 
+      limit = 9, // Match frontend itemsPerPage
+      status, 
+      dateFrom, 
+      dateTo, 
+      search 
+    } = req.query;
+    
+    const skip = (page - 1) * parseInt(limit);
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
 
     let query = {};
 
-    if (status) query.status = status;
-    if (dateFrom && dateTo) {
-      query.createdAt = {
-        $gte: new Date(dateFrom),
-        $lte: new Date(dateTo)
-      };
+    // Status filter
+    if (status && status !== 'all') {
+      query.status = status;
     }
 
+    // Date range filter
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) query.createdAt.$lte = new Date(dateTo);
+    }
+
+    // Search filter
+    if (search) {
+      query.$or = [
+        { gatewayPaymentId: { $regex: search, $options: 'i' } },
+        { 'user.name': { $regex: search, $options: 'i' } },
+        { 'user.email': { $regex: search, $options: 'i' } },
+        { 'vendor.companyName': { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Get total count
+    const totalItems = await Payment.countDocuments(query);
+    const totalPages = Math.ceil(totalItems / limitNumber);
+
+    // Get payments with pagination
     const payments = await Payment.find(query)
-      .populate('booking', 'bookingRef')
-      .populate('user', 'name email')
+      .populate('user', 'name email phone')
       .populate('vendor', 'companyName')
-      .skip(skip)
-      .limit(parseInt(limit))
-      .sort({ createdAt: -1 });
-
-    const total = await Payment.countDocuments(query);
-
-    // Payment summary
-    const summary = await Payment.aggregate([
-      {
-        $match: query
-      },
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 },
-          totalAmount: { $sum: '$amount' }
+      .populate({
+        path: 'booking',
+        select: 'bookingRef pickup dropoff vehicle',
+        populate: {
+          path: 'vehicle',
+          select: 'title'
         }
-      }
-    ]);
+      })
+      .skip(skip)
+      .limit(limitNumber)
+      .sort({ createdAt: -1 });
 
     res.json({
       success: true,
       data: {
         payments,
-        summary,
         pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
+          totalItems,
+          totalPages,
+          currentPage: pageNumber,
+          itemsPerPage: limitNumber
         }
       }
     });
