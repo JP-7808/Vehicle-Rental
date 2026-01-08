@@ -117,7 +117,8 @@ export const register = async (req, res) => {
   }
 };
 
-// Login controller with cookies
+
+// Login controller with cookies - UPDATED FOR BOTH MODEL VERSIONS
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -129,7 +130,9 @@ export const login = async (req, res) => {
       });
     }
 
+    // Try to find user with both kycStatus structures
     const user = await User.findOne({ email }).populate('vendorProfile');
+    
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -173,11 +176,47 @@ export const login = async (req, res) => {
     // Set cookies
     setTokenCookies(res, token, refreshToken);
 
+    // Determine kycStatus based on model version
+    let kycStatus = user.kycStatus;
+    let kycDocuments = user.kycDocuments;
+    
+    // Check if user has old model structure (kycDocuments is an object with status)
+    if (user.kycDocuments && typeof user.kycDocuments === 'object' && 'status' in user.kycDocuments) {
+      kycStatus = user.kycDocuments.status;
+      kycDocuments = {
+        adhaarFront: user.kycDocuments.adhaarFront,
+        adhaarBack: user.kycDocuments.adhaarBack,
+        drivingLicenseFront: user.kycDocuments.drivingLicenseFront,
+        drivingLicenseBack: user.kycDocuments.drivingLicenseBack,
+        submittedAt: user.kycDocuments.submittedAt,
+        verifiedAt: user.kycDocuments.verifiedAt,
+        notes: user.kycDocuments.notes,
+        verifiedBy: user.kycDocuments.verifiedBy
+      };
+    }
+
     res.json({
       success: true,
       message: 'Login successful',
       data: {
-        user: getUserResponse(user),
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+          avatar: user.avatar,
+          isEmailVerified: user.emailVerification?.isVerified || false,
+          kycStatus, // Use determined kycStatus
+          kycDocuments, // Use determined kycDocuments
+          vendorProfile: user.vendorProfile,
+          address: user.address,
+          preferences: user.preferences,
+          // Additional fields that might be needed
+          registeredAt: user.registeredAt,
+          lastLoginAt: user.lastLoginAt,
+          lastSeen: user.lastSeen
+        },
         token, // Also return in response for mobile apps
         refreshToken
       }
